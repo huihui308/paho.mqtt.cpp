@@ -13,6 +13,10 @@
 //  - Using asynchronous tokens
 //  - Implementing callbacks and action listeners
 //
+// cmd:
+//		cmake --build build/;./build/src/samples/async_publish broker.hivemq.com:1883 huangdawei hello
+//
+//
 
 /*******************************************************************************
  * Copyright (c) 2013-2020 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -130,17 +134,21 @@ int main(int argc, char* argv[])
 	// library requires an ID to identify the persistence files.
 
 	string	address  = (argc > 1) ? string(argv[1]) : DFLT_SERVER_ADDRESS,
-			clientID = (argc > 2) ? string(argv[2]) : CLIENT_ID;
+			clientID = (argc > 2) ? string(argv[2]) : CLIENT_ID,
+			topic_str= (argc > 3) ? string(argv[3]) : TOPIC;
 
-	cout << "Initializing for server '" << address << "'..." << endl;
+	cout << "\n\nInitializing for server '" << address << "', client id '" << clientID << "'..." << endl;
 	mqtt::async_client client(address, clientID, PERSIST_DIR);
 
 	callback cb;
 	client.set_callback(cb);
 
 	auto connOpts = mqtt::connect_options_builder()
+		.mqtt_version(MQTTVERSION_3_1_1)
 		.clean_session()
-		.will(mqtt::message(TOPIC, LWT_PAYLOAD, QOS))
+		.keep_alive_interval(std::chrono::seconds(10))
+		.will(mqtt::message(topic_str, LWT_PAYLOAD, QOS, strlen(LWT_PAYLOAD)))
+		.automatic_reconnect(std::chrono::seconds(5), std::chrono::seconds(25))
 		.finalize();
 
 	cout << "  ...OK" << endl;
@@ -154,8 +162,8 @@ int main(int argc, char* argv[])
 
 		// First use a message pointer.
 
-		cout << "\nSending message..." << endl;
-		mqtt::message_ptr pubmsg = mqtt::make_message(TOPIC, PAYLOAD1);
+		cout << "\nSending message, topic string:" << topic_str << "..." << endl;
+		mqtt::message_ptr pubmsg = mqtt::make_message(topic_str, PAYLOAD1);
 		pubmsg->set_qos(QOS);
 		client.publish(pubmsg)->wait_for(TIMEOUT);
 		cout << "  ...OK" << endl;
@@ -164,7 +172,7 @@ int main(int argc, char* argv[])
 
 		cout << "\nSending next message..." << endl;
 		mqtt::delivery_token_ptr pubtok;
-		pubtok = client.publish(TOPIC, PAYLOAD2, strlen(PAYLOAD2), QOS, false);
+		pubtok = client.publish(topic_str, PAYLOAD2, strlen(PAYLOAD2), QOS, false);
 		cout << "  ...with token: " << pubtok->get_message_id() << endl;
 		cout << "  ...for message with " << pubtok->get_message()->get_payload().size()
 			<< " bytes" << endl;
@@ -175,7 +183,7 @@ int main(int argc, char* argv[])
 
 		cout << "\nSending next message..." << endl;
 		action_listener listener;
-		pubmsg = mqtt::make_message(TOPIC, PAYLOAD3);
+		pubmsg = mqtt::make_message(topic_str, PAYLOAD3);
 		pubtok = client.publish(pubmsg, nullptr, listener);
 		pubtok->wait();
 		cout << "  ...OK" << endl;
@@ -184,7 +192,7 @@ int main(int argc, char* argv[])
 
 		cout << "\nSending final message..." << endl;
 		delivery_action_listener deliveryListener;
-		pubmsg = mqtt::make_message(TOPIC, PAYLOAD4);
+		pubmsg = mqtt::make_message(topic_str, PAYLOAD4);
 		client.publish(pubmsg, nullptr, deliveryListener);
 
 		while (!deliveryListener.is_done()) {
@@ -198,7 +206,26 @@ int main(int argc, char* argv[])
 		if (!toks.empty())
 			cout << "Error: There are pending delivery tokens!" << endl;
 
+		std::cout << "\n\nLoop wait for input msg, 'q' or 'Q' quit loop" << std::endl;
+		std::string input_str;
+		while ( true ) {
+			std::cout << "\nInput:";
+			std::getline(std::cin, input_str);
+			if ( ("q" == input_str) || ("Q" == input_str) ) {
+				break;
+			}
+			std::cout << "Publish msg '" << input_str << "'" << std::endl;
+			std::cout << "----------------------------------" << std::endl;
+			pubmsg = mqtt::make_message(topic_str, input_str);
+			pubtok = client.publish(pubmsg, nullptr, listener);
+			pubtok->wait();
+			cout << "  ...OK" << endl;
+		}
+
 		// Disconnect
+		// trigger will message
+		std::cout << "exit(1)--------" << std::endl;
+		exit(1);
 		cout << "\nDisconnecting..." << endl;
 		client.disconnect()->wait();
 		cout << "  ...OK" << endl;
