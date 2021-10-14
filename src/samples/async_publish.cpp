@@ -14,7 +14,8 @@
 //  - Implementing callbacks and action listeners
 //
 // cmd:
-//		cmake --build build/;./build/src/samples/async_publish broker.hivemq.com:1883 huangdawei hello
+//		cmake -Bbuild -H. -DPAHO_BUILD_STATIC=ON -DPAHO_BUILD_DOCUMENTATION=TRUE -DPAHO_BUILD_SAMPLES=TRUE
+//		cmake --build build/;./build/src/samples/async_publish broker.hivemq.com:1883 huangdawei topic_david
 //
 //
 
@@ -133,9 +134,9 @@ int main(int argc, char* argv[])
 	// session or Client ID unless it's using persistence, then the local
 	// library requires an ID to identify the persistence files.
 
-	string	address  = (argc > 1) ? string(argv[1]) : DFLT_SERVER_ADDRESS,
-			clientID = (argc > 2) ? string(argv[2]) : CLIENT_ID,
-			topic_str= (argc > 3) ? string(argv[3]) : TOPIC;
+	std::string	address  = (argc > 1) ? std::string(argv[1]) : DFLT_SERVER_ADDRESS,
+				clientID = (argc > 2) ? std::string(argv[2]) : CLIENT_ID,
+				topic_str= (argc > 3) ? std::string(argv[3]) : TOPIC;
 
 	cout << "\n\nInitializing for server '" << address << "', client id '" << clientID << "'..." << endl;
 	mqtt::async_client client(address, clientID, PERSIST_DIR);

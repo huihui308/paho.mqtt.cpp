@@ -10,6 +10,11 @@
 //  - Publishing messages
 //  - User-defined persistence
 //
+// cmd:
+//		cmake -Bbuild -H. -DPAHO_BUILD_STATIC=ON -DPAHO_BUILD_DOCUMENTATION=TRUE -DPAHO_BUILD_SAMPLES=TRUE
+//		cmake --build build/;./build/src/samples/sync_publish broker.hivemq.com:1883 huangdawei topic_david
+//
+//
 
 /*******************************************************************************
  * Copyright (c) 2013-2017 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -160,9 +165,13 @@ public:
 
 int main(int argc, char* argv[])
 {
+	std::string	address  = (argc > 1) ? std::string(argv[1]) : SERVER_ADDRESS,
+				clientID = (argc > 2) ? std::string(argv[2]) : CLIENT_ID,
+				topic_str= (argc > 3) ? std::string(argv[3]) : TOPIC;
+
 	std::cout << "Initialzing..." << std::endl;
 	sample_mem_persistence persist;
-	mqtt::client client(SERVER_ADDRESS, CLIENT_ID, &persist);
+	mqtt::client client(address, clientID, &persist);
 
 	user_callback cb;
 	client.set_callback(cb);
@@ -180,7 +189,7 @@ int main(int argc, char* argv[])
 		// First use a message pointer.
 
 		std::cout << "\nSending message..." << std::endl;
-		auto pubmsg = mqtt::make_message(TOPIC, PAYLOAD1);
+		auto pubmsg = mqtt::make_message(topic_str, PAYLOAD1);
 		pubmsg->set_qos(QOS);
 		client.publish(pubmsg);
 		std::cout << "...OK" << std::endl;
@@ -188,13 +197,13 @@ int main(int argc, char* argv[])
 		// Now try with itemized publish.
 
 		std::cout << "\nSending next message..." << std::endl;
-		client.publish(TOPIC, PAYLOAD2, strlen(PAYLOAD2)+1);
+		client.publish(topic_str, PAYLOAD2, strlen(PAYLOAD2)+1);
 		std::cout << "...OK" << std::endl;
 
 		// Now try with a listener, no token, and non-heap message
 
 		std::cout << "\nSending final message..." << std::endl;
-		client.publish(mqtt::message(TOPIC, PAYLOAD3, QOS, false));
+		client.publish(mqtt::message(topic_str, PAYLOAD3, QOS, false));
 		std::cout << "OK" << std::endl;
 
 		// Disconnect
