@@ -13,6 +13,10 @@
 //  - Using a "clean session" and manually re-subscribing to topics on
 //    reconnect.
 //
+// cmd:
+//		cmake -Bbuild -H. -DPAHO_BUILD_STATIC=ON -DPAHO_BUILD_DOCUMENTATION=TRUE -DPAHO_BUILD_SAMPLES=TRUE
+//		cmake --build build/;./build/src/samples/async_subscribe broker.hivemq.com:1883 paho_cpp_async_subcribe topic_david
+//
 
 /*******************************************************************************
  * Copyright (c) 2013-2020 Frank Pagliughi <fpagliughi@mindspring.com>
@@ -98,6 +102,8 @@ class callback : public virtual mqtt::callback,
 	// An action listener to display the result of actions.
 	action_listener subListener_;
 
+	std::string topic_;
+
 	// This deomonstrates manually reconnecting to the broker by calling
 	// connect() again. This is a possibility for an application that keeps
 	// a copy of it's original connect_options, or if the app wants to
@@ -125,17 +131,19 @@ class callback : public virtual mqtt::callback,
 
 	// (Re)connection success
 	// Either this or connected() can be used for callbacks.
-	void on_success(const mqtt::token& tok) override {}
+	void on_success(const mqtt::token& tok) override {
+		//std::cout <<"on_success()" << std::endl;
+	}
 
 	// (Re)connection success
 	void connected(const std::string& cause) override {
 		std::cout << "\nConnection success" << std::endl;
-		std::cout << "\nSubscribing to topic '" << TOPIC << "'\n"
-			<< "\tfor client " << CLIENT_ID
+		std::cout << "\nSubscribing to topic '" << topic_ << "'\n"
+			<< "\tfor client " << cli_.get_client_id()
 			<< " using QoS" << QOS << "\n"
 			<< "\nPress Q<Enter> to quit\n" << std::endl;
 
-		cli_.subscribe(TOPIC, QOS, nullptr, subListener_);
+		cli_.subscribe(topic_, QOS, nullptr, subListener_);
 	}
 
 	// Callback for when the connection is lost.
@@ -157,40 +165,46 @@ class callback : public virtual mqtt::callback,
 		std::cout << "\tpayload: '" << msg->to_string() << "'\n" << std::endl;
 	}
 
-	void delivery_complete(mqtt::delivery_token_ptr token) override {}
+	void delivery_complete(mqtt::delivery_token_ptr token) override {
+		//std::cout << "##############" << std::endl;
+	}
 
 public:
-	callback(mqtt::async_client& cli, mqtt::connect_options& connOpts)
-				: nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription") {}
+	callback(mqtt::async_client& cli, mqtt::connect_options& connOpts, std::string topicStr)
+				: nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), topic_(topicStr) {}
 };
 
 /////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[])
 {
+	std::string	address  = (argc > 1) ? std::string(argv[1]) : SERVER_ADDRESS,
+				clientID = (argc > 2) ? std::string(argv[2]) : CLIENT_ID,
+				topic_str= (argc > 3) ? std::string(argv[3]) : TOPIC;
+
 	// A subscriber often wants the server to remember its messages when its
 	// disconnected. In that case, it needs a unique ClientID and a
 	// non-clean session.
 
-	mqtt::async_client cli(SERVER_ADDRESS, CLIENT_ID);
+	mqtt::async_client cli(address, clientID);
 
 	mqtt::connect_options connOpts;
 	connOpts.set_clean_session(false);
 
 	// Install the callback(s) before connecting.
-	callback cb(cli, connOpts);
+	callback cb(cli, connOpts, topic_str);
 	cli.set_callback(cb);
 
 	// Start the connection.
 	// When completed, the callback will subscribe to topic.
 
 	try {
-		std::cout << "Connecting to the MQTT server..." << std::flush;
+		std::cout << "\n\nConnecting to the MQTT server..." << std::flush;
 		cli.connect(connOpts, nullptr, cb);
 	}
 	catch (const mqtt::exception& exc) {
 		std::cerr << "\nERROR: Unable to connect to MQTT server: '"
-			<< SERVER_ADDRESS << "'" << exc << std::endl;
+			<< address << "'" << exc << std::endl;
 		return 1;
 	}
 

@@ -15,8 +15,7 @@
 //
 // cmd:
 //		cmake -Bbuild -H. -DPAHO_BUILD_STATIC=ON -DPAHO_BUILD_DOCUMENTATION=TRUE -DPAHO_BUILD_SAMPLES=TRUE
-//		cmake --build build/;./build/src/samples/async_publish broker.hivemq.com:1883 huangdawei topic_david
-//
+//		cmake --build build/;./build/src/samples/async_publish broker.hivemq.com:1883 paho_cpp_async_publish topic_david
 //
 
 /*******************************************************************************
@@ -98,7 +97,9 @@ protected:
 
 	void on_success(const mqtt::token& tok) override {
 		cout << "\tListener success for token: "
-			<< tok.get_message_id() << endl;
+			<< tok.get_message_id() << ", type: " 
+			<< tok.get_type() << ", topic: " 
+			<< *tok.get_topics()->c_arr() << endl;
 	}
 };
 
@@ -212,6 +213,9 @@ int main(int argc, char* argv[])
 		while ( true ) {
 			std::cout << "\nInput:";
 			std::getline(std::cin, input_str);
+			if (0 == input_str.length()) {
+				continue;
+			}
 			if ( ("q" == input_str) || ("Q" == input_str) ) {
 				break;
 			}
@@ -222,7 +226,6 @@ int main(int argc, char* argv[])
 			pubtok->wait();
 			cout << "  ...OK" << endl;
 		}
-
 		// Disconnect
 		// trigger will message
 		std::cout << "exit(1)--------" << std::endl;
